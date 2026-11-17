@@ -1,0 +1,53 @@
+name: Install and Test Scam Tool
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Kali Linux tools
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          nmap \
+          arp-scan \
+          dnsenum \
+          john \
+          hashcat \
+          wifite \
+          aircrack-ng \
+          ettercap-text-only \
+          sslstrip \
+          mitmf
+
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Make script executable
+      run: |
+        chmod +x scam_tool.py
+        chmod +x install.sh
+
+    - name: Test help command
+      run: |
+        python3 scam_tool.py --help
+
+    - name: Run basic tests
+      run: |
+        python3 -c "import sys; print('Python installation OK')"
+        echo "Installation and setup completed successfully"

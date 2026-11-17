@@ -1,4 +1,5 @@
-# Python dependencies for Scam Tool
+# Scam Tool - Kali Linux Edition
+# Python dependencies
 
-# No specific Python packages required as we're using system tools
-# This file is kept for consistency and future expansion
+# No Python dependencies needed for this tool
+# All functionality is based on Kali Linux command line tools
