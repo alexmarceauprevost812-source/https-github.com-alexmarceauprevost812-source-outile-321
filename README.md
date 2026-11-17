@@ -14,6 +14,14 @@ Before installing the Scam Tool on Ubuntu, ensure you have the following:
 - Internet connectivity
 - Root privileges or sudo access
 
+## One-Command Installation
+
+Install all required dependencies and tools with a single command:
+
+```bash
+sudo apt update && sudo apt install -y curl wget git python3 python3-pip python3-venv && mkdir -p scam_tool && cd scam_tool && git clone https://github.com/your-repo/scam-tool.git . && pip3 install -r requirements.txt
+```
+
 ## Installation Steps
 
 ### Step 1: Update Your System
@@ -29,17 +37,17 @@ sudo apt update
 Install the necessary dependencies for the Scam Tool:
 
 ```bash
-sudo apt install -y curl wget git python3 python3-pip
+sudo apt install -y curl wget git python3 python3-pip python3-venv
 ```
 
 ### Step 3: Download and Install the Scam Tool
 
-Download the installation script and run it with sudo:
+Clone the repository and install dependencies:
 
 ```bash
-wget https://example.com/install_tools_ubuntu.sh
-chmod +x install_tools_ubuntu.sh
-sudo ./install_tools_ubuntu.sh
+mkdir -p scam_tool && cd scam_tool
+git clone https://github.com/your-repo/scam-tool.git .
+pip3 install -r requirements.txt
 ```
 
 ### Step 4: Verify Installation
@@ -47,30 +55,10 @@ sudo ./install_tools_ubuntu.sh
 After installation, verify that all tools are properly installed:
 
 ```bash
-# Check if tools are available
-nmap --version
-arp-scan --version
-dnsenum --version
-mitmf --version
-ettercap --version
-aircrack-ng --version
-john --version
-hashcat --version
-
 # Check Python packages
 python3 --version
 pip3 --version
 ```
-
-### Step 5: Configure the Tool
-
-The Scam Tool comes with a sample configuration file. Edit it to customize your scan parameters:
-
-```bash
-nano ~/.scam_tool/config/scan_config.yaml
-```
-
-Modify the configuration to match your network environment and security requirements.
 
 ## Usage Instructions
 

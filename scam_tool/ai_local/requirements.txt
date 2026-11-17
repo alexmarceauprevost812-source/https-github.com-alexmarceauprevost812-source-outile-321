@@ -1,0 +1,31 @@
+# Dépendances pour l'IA Locale
+# Ce fichier liste toutes les bibliothèques nécessaires
+
+# Bibliothèques standard
+datetime
+json
+logging
+os
+sys
+time
+
+# Bibliothèques tierces (optionnelles)
+# requests>=2.25.1
+# numpy>=1.19.0
+# pandas>=1.2.0
+# scikit-learn>=0.24.0
+
+# Pour les analyses réseau
+# netifaces>=0.10.0
+# psutil>=5.8.0
+
+# Pour les interfaces utilisateur
+# tkinter>=8.6
+# PyQt5>=5.15.0
+
+# Pour les logs
+# python-json-logger>=2.0.0
+
+# Pour les tests
+# pytest>=6.0.0
+# coverage>=5.0.0
