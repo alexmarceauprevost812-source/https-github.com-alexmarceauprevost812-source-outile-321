@@ -1,0 +1,10 @@
+# Ajouté par ti-lex /github
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+*.gguf
+*.safetensors
+*.bin
+node_modules/

@@ -1,0 +1,4 @@
+# Python dependencies for Scam Tool
+
+# No specific Python packages required as we're using system tools
+# This file is kept for consistency and future expansion
