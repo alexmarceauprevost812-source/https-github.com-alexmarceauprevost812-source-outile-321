@@ -1,248 +1,287 @@
-#!/usr/bin/env python3
 """
-Détection de scams pour l'IA Locale
-Implémente des algorithmes de détection de fraude
+Détecteur de escroqueries pour l'IA Locale
+Permet de détecter les escroqueries dans le trafic réseau
 """
 
 import os
 import sys
 import json
-import hashlib
+import threading
 import time
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-from collections import defaultdict
+from typing import Dict, List, Optional
+import socket
+import struct
 
 # Ajout du dossier ai_local au chemin Python
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import AI_CONFIG
 from utils import setup_logging, load_data, save_data
 
 class ScamDetector:
-    """Classe pour la détection de scams"""
+    """Classe pour détecter les escroqueries"""
     
     def __init__(self):
-        """Initialisation du détecteur de scams"""
+        """Initialisation du détecteur d'escroqueries"""
         self.logger = setup_logging()
-        self.known_scams = set()
-        self.scam_patterns = []
-        self.scam_domains = set()
-        self.scam_ips = set()
-        self.scam_urls = set()
-        self.logger.info("Détecteur de scams initialisé")
+        self.suspicious_ips = set()
+        self.suspicious_ports = set()
+        self.packet_history = []
+        self.alerts = []
+        self.is_monitoring = False
+        self.logger.info("Détecteur d'escroqueries initialisé")
     
-    def load_known_scams(self) -> bool:
-        """Charge les scams connus depuis des fichiers"""
-        try:
-            # Charger les scams depuis des fichiers
-            scam_files = [
-                "data/scam_domains.json",
-                "data/scam_ips.json",
-                "data/scam_urls.json"
-            ]
-            
-            for scam_file in scam_files:
-                if os.path.exists(scam_file):
-                    with open(scam_file, 'r') as f:
-                        data = json.load(f)
-                        if isinstance(data, list):
-                            self.known_scams.update(data)
-            
-            self.logger.info(f"Chargé {len(self.known_scams)} scams connus")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors du chargement des scams: {e}")
+    def start_monitoring(self):
+        """Démarre la surveillance du trafic"""
+        if self.is_monitoring:
+            self.logger.warning("La surveillance est déjà en cours")
             return False
+        
+        self.is_monitoring = True
+        self.logger.info("Surveillance du trafic démarrée")
+        return True
     
-    def add_scam_pattern(self, pattern: str) -> bool:
-        """Ajoute un nouveau motif de scam"""
-        try:
-            if pattern not in self.scam_patterns:
-                self.scam_patterns.append(pattern)
-                self.logger.info(f"Motif de scam ajouté: {pattern}")
-                return True
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors de l'ajout du motif: {e}")
-            return False
+    def stop_monitoring(self):
+        """Arrête la surveillance du trafic"""
+        self.is_monitoring = False
+        self.logger.info("Surveillance du trafic arrêtée")
     
-    def check_domain(self, domain: str) -> bool:
-        """Vérifie si un domaine est un scam"""
+    def add_suspicious_ip(self, ip_address: str):
+        """Ajoute une adresse IP suspecte"""
         try:
-            # Vérification rapide avec les domaines connus
-            if domain in self.scam_domains:
-                return True
-            
-            # Vérification avec les motifs
-            for pattern in self.scam_patterns:
-                if pattern in domain:
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors de la vérification du domaine: {e}")
-            return False
+            # Validation de l'adresse IP
+            socket.inet_aton(ip_address)
+            self.suspicious_ips.add(ip_address)
+            self.logger.info(f"Adresse IP suspecte ajoutée: {ip_address}")
+        except socket.error:
+            self.logger.warning(f"Adresse IP invalide: {ip_address}")
     
-    def check_ip(self, ip: str) -> bool:
-        """Vérifie si une IP est un scam"""
-        try:
-            if ip in self.scam_ips:
-                return True
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors de la vérification de l'IP: {e}")
-            return False
+    def remove_suspicious_ip(self, ip_address: str):
+        """Supprime une adresse IP suspecte"""
+        if ip_address in self.suspicious_ips:
+            self.suspicious_ips.remove(ip_address)
+            self.logger.info(f"Adresse IP suspecte supprimée: {ip_address}")
     
-    def check_url(self, url: str) -> bool:
-        """Vérifie si une URL est un scam"""
-        try:
-            # Vérification rapide avec les URLs connues
-            if url in self.scam_urls:
-                return True
-            
-            # Vérification avec les motifs
-            for pattern in self.scam_patterns:
-                if pattern in url:
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors de la vérification de l'URL: {e}")
-            return False
+    def add_suspicious_port(self, port: int):
+        """Ajoute un port suspect"""
+        if 0 <= port <= 65535:
+            self.suspicious_ports.add(port)
+            self.logger.info(f"Port suspect ajouté: {port}")
+        else:
+            self.logger.warning(f"Port invalide: {port}")
     
-    def analyze_network_data(self, data: Dict) -> Dict:
-        """Analyse les données réseau pour détecter les scams"""
+    def remove_suspicious_port(self, port: int):
+        """Supprime un port suspect"""
+        if port in self.suspicious_ports:
+            self.suspicious_ports.remove(port)
+            self.logger.info(f"Port suspect supprimé: {port}")
+    
+    def analyze_packet(self, packet_data: Dict) -> Dict:
+        """Analyse un paquet réseau pour détecter les escroqueries"""
         try:
-            results = {
+            # Vérification des données du paquet
+            if not self._validate_packet_data(packet_data):
+                self.logger.warning("Données de paquet invalides")
+                return {"status": "error", "message": "Invalid packet data"}
+            
+            # Analyse du paquet
+            analysis = self._perform_scam_analysis(packet_data)
+            
+            # Ajout à l'historique
+            self.packet_history.append({
                 "timestamp": datetime.now().isoformat(),
-                "analysis": {
-                    "domain_checks": 0,
-                    "ip_checks": 0,
-                    "url_checks": 0,
-                    "threats_found": 0
-                }
+                "packet": packet_data,
+                "analysis": analysis
+            })
+            
+            # Vérification des alertes
+            self._check_alerts(analysis)
+            
+            return analysis
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'analyse du paquet: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    def _validate_packet_data(self, packet_data: Dict) -> bool:
+        """Valide les données d'un paquet"""
+        required_fields = ["source_ip", "destination_ip", "protocol", "timestamp"]
+        for field in required_fields:
+            if field not in packet_data:
+                return False
+        return True
+    
+    def _perform_scam_analysis(self, packet_data: Dict) -> Dict:
+        """Effectue l'analyse détaillée pour détecter les escroqueries"""
+        try:
+            analysis = {
+                "timestamp": packet_data["timestamp"],
+                "source_ip": packet_data["source_ip"],
+                "destination_ip": packet_data["destination_ip"],
+                "protocol": packet_data["protocol"],
+                "is_scam": False,
+                "reasons": [],
+                "confidence": 0.0
             }
             
-            # Analyse des domaines
-            domains = data.get("domains", [])
-            for domain in domains:
-                if self.check_domain(domain):
-                    results["analysis"]["threats_found"] += 1
-                results["analysis"]["domain_checks"] += 1
+            # Vérification des adresses IP suspectes
+            if packet_data["source_ip"] in self.suspicious_ips:
+                analysis["is_scam"] = True
+                analysis["reasons"].append("Adresse IP source suspecte")
             
-            # Analyse des IPs
-            ips = data.get("ips", [])
-            for ip in ips:
-                if self.check_ip(ip):
-                    results["analysis"]["threats_found"] += 1
-                results["analysis"]["ip_checks"] += 1
+            if packet_data["destination_ip"] in self.suspicious_ips:
+                analysis["is_scam"] = True
+                analysis["reasons"].append("Adresse IP destination suspecte")
             
-            # Analyse des URLs
-            urls = data.get("urls", [])
-            for url in urls:
-                if self.check_url(url):
-                    results["analysis"]["threats_found"] += 1
-                results["analysis"]["url_checks"] += 1
+            # Vérification des ports suspectes
+            if "source_port" in packet_data and packet_data["source_port"] in self.suspicious_ports:
+                analysis["is_scam"] = True
+                analysis["reasons"].append("Port source suspect")
             
-            self.logger.info(f"Analyse réseau terminée: {results['analysis']}")
-            return results
+            if "destination_port" in packet_data and packet_data["destination_port"] in self.suspicious_ports:
+                analysis["is_scam"] = True
+                analysis["reasons"].append("Port destination suspect")
             
+            # Vérification de la taille du paquet
+            if "packet_size" in packet_data:
+                if packet_data["packet_size"] > 1500:  # Taille maximale Ethernet
+                    analysis["is_scam"] = True
+                    analysis["reasons"].append("Taille de paquet excessive")
+            
+            # Calcul du niveau de confiance (simplifié)
+            if analysis["reasons"]:
+                analysis["confidence"] = min(len(analysis["reasons"]) * 0.33, 1.0)
+            
+            return analysis
         except Exception as e:
-            self.logger.error(f"Erreur lors de l'analyse réseau: {e}")
-            return {
+            self.logger.error(f"Erreur lors de l'analyse des escroqueries: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    def _check_alerts(self, analysis: Dict):
+        """Vérifie si des alertes doivent être générées"""
+        if analysis["is_scam"]:
+            alert = {
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
+                "type": "scam_detected",
+                "details": analysis,
+                "confidence": analysis["confidence"]
             }
+            self.alerts.append(alert)
+            self.logger.warning(f"Escroquerie détectée: {analysis}")
     
-    def generate_hash(self, data: str) -> str:
-        """Génère un hash pour les données"""
-        return hashlib.md5(data.encode()).hexdigest()
+    def get_suspicious_ips(self) -> List[str]:
+        """Retourne la liste des adresses IP suspectes"""
+        return list(self.suspicious_ips)
     
-    def add_scam_data(self, data: Dict) -> bool:
-        """Ajoute des données de scam à la base"""
+    def get_suspicious_ports(self) -> List[int]:
+        """Retourne la liste des ports suspectes"""
+        return list(self.suspicious_ports)
+    
+    def get_packet_history(self) -> List[Dict]:
+        """Retourne l'historique des paquets"""
+        return self.packet_history
+    
+    def get_alerts(self) -> List[Dict]:
+        """Retourne les alertes générées"""
+        return self.alerts
+    
+    def clear_history(self):
+        """Efface l'historique"""
+        self.packet_history.clear()
+        self.alerts.clear()
+        self.logger.info("Historique effacé")
+    
+    def export_data(self, file_path: str = "data/scam_data.json") -> bool:
+        """Exporte les données dans un fichier"""
         try:
-            # Sauvegarder dans les fichiers appropriés
-            os.makedirs("data", exist_ok=True)
+            data = {
+                "suspicious_ips": list(self.suspicious_ips),
+                "suspicious_ports": list(self.suspicious_ports),
+                "packet_history": self.packet_history,
+                "alerts": self.alerts,
+                "exported_at": datetime.now().isoformat()
+            }
             
-            # Domaines
-            domains_file = "data/scam_domains.json"
-            domains = set()
-            if os.path.exists(domains_file):
-                with open(domains_file, 'r') as f:
-                    domains = set(json.load(f))
+            # Création du dossier si nécessaire
+            dir_name = os.path.dirname(file_path)
+            if dir_name and not os.path.exists(dir_name):
+                os.makedirs(dir_name)
             
-            domains.update(data.get("domains", []))
-            with open(domains_file, 'w') as f:
-                json.dump(list(domains), f, indent=2)
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=2)
             
-            # IPs
-            ips_file = "data/scam_ips.json"
-            ips = set()
-            if os.path.exists(ips_file):
-                with open(ips_file, 'r') as f:
-                    ips = set(json.load(f))
-            
-            ips.update(data.get("ips", []))
-            with open(ips_file, 'w') as f:
-                json.dump(list(ips), f, indent=2)
-            
-            # URLs
-            urls_file = "data/scam_urls.json"
-            urls = set()
-            if os.path.exists(urls_file):
-                with open(urls_file, 'r') as f:
-                    urls = set(json.load(f))
-            
-            urls.update(data.get("urls", []))
-            with open(urls_file, 'w') as f:
-                json.dump(list(urls), f, indent=2)
-            
-            self.logger.info(f"Données de scam ajoutées: {len(data.get('domains', []))} domaines, "
-                           f"{len(data.get('ips', []))} IPs, {len(data.get('urls', []))} URLs")
+            self.logger.info(f"Données exportées: {file_path}")
             return True
-            
         except Exception as e:
-            self.logger.error(f"Erreur lors de l'ajout des données de scam: {e}")
+            self.logger.error(f"Erreur lors de l'exportation des données: {e}")
             return False
     
-    def get_statistics(self) -> Dict:
-        """Retourne les statistiques du détecteur"""
-        return {
-            "scam_patterns": len(self.scam_patterns),
-            "scam_domains": len(self.scam_domains),
-            "scam_ips": len(self.scam_ips),
-            "scam_urls": len(self.scam_urls),
-            "known_scams": len(self.known_scams),
-            "timestamp": datetime.now().isoformat()
-        }
+    def import_data(self, file_path: str) -> bool:
+        """Importe les données depuis un fichier"""
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                
+                self.suspicious_ips = set(data.get("suspicious_ips", []))
+                self.suspicious_ports = set(data.get("suspicious_ports", []))
+                self.packet_history = data.get("packet_history", [])
+                self.alerts = data.get("alerts", [])
+                
+                self.logger.info(f"Données importées: {file_path}")
+                return True
+            else:
+                self.logger.warning(f"Fichier non trouvé: {file_path}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'importation des données: {e}")
+            return False
 
-def main():
-    """Point d'entrée principal pour le détecteur"""
+# Exemple d'utilisation
+if __name__ == "__main__":
+    # Création d'une instance du détecteur
     detector = ScamDetector()
     
-    # Charger les scams connus
-    detector.load_known_scams()
+    # Ajout d'adresses IP suspectes
+    detector.add_suspicious_ip("192.168.1.100")
+    detector.add_suspicious_ip("10.0.0.1")
     
-    # Exemple de données à analyser
-    test_data = {
-        "domains": ["example.com", "scam-site.net"],
-        "ips": ["192.168.1.1", "10.0.0.1"],
-        "urls": ["http://example.com", "http://scam-site.net"]
+    # Ajout de ports suspectes
+    detector.add_suspicious_port(23)
+    detector.add_suspicious_port(25)
+    
+    # Démarrage de la surveillance
+    detector.start_monitoring()
+    
+    # Analyse de paquets
+    packet1 = {
+        "source_ip": "192.168.1.100",
+        "destination_ip": "8.8.8.8",
+        "protocol": "TCP",
+        "source_port": 23,
+        "destination_port": 80,
+        "packet_size": 1000,
+        "timestamp": datetime.now().isoformat()
     }
     
-    # Analyse des données
-    results = detector.analyze_network_data(test_data)
-    print(f"Résultats de l'analyse: {results}")
+    packet2 = {
+        "source_ip": "10.0.0.1",
+        "destination_ip": "1.1.1.1",
+        "protocol": "UDP",
+        "source_port": 53,
+        "destination_port": 53,
+        "packet_size": 500,
+        "timestamp": datetime.now().isoformat()
+    }
     
-    # Statistiques
-    stats = detector.get_statistics()
-    print(f"Statistiques: {stats}")
-
-if __name__ == "__main__":
-    main()
+    # Analyse des paquets
+    result1 = detector.analyze_packet(packet1)
+    result2 = detector.analyze_packet(packet2)
+    
+    print("Résultat 1:", result1)
+    print("Résultat 2:", result2)
+    
+    # Affichage des alertes
+    print("Alertes:", detector.get_alerts())
+    
+    # Exportation des données
+    detector.export_data()

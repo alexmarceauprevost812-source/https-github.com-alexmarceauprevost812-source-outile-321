@@ -1,187 +1,345 @@
 """
 Fonctions utilitaires pour l'IA Locale
+Contient des fonctions utilitaires pour l'IA
 """
 
 import os
+import sys
 import json
 import logging
-import sys
+import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+import hashlib
 
-# Configuration du logging
-def setup_logging():
-    """Configure le système de logging"""
-    # Création du dossier de logs s'il n'existe pas
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
+# Ajout du dossier ai_local au chemin Python
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+def setup_logging(log_level: str = "INFO", log_file: str = "logs/ai_local.log"):
+    """
+    Configure le système de journalisation
+    
+    Args:
+        log_level (str): Niveau de journalisation (DEBUG, INFO, WARNING, ERROR)
+        log_file (str): Fichier de log
+    
+    Returns:
+        logging.Logger: Logger configuré
+    """
+    # Création du dossier de logs si nécessaire
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir)
     
     # Configuration du logger
-    logger = logging.getLogger('ai_local')
-    logger.setLevel(logging.DEBUG)
+    logger = logging.getLogger("ai_local")
+    logger.setLevel(getattr(logging, log_level.upper()))
     
-    # Création du handler de fichier
-    log_file = os.path.join(log_dir, 'ai_local.log')
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.DEBUG)
-    
-    # Création du formatter
+    # Création du formateur
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    
+    # Création du gestionnaire de fichier
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(getattr(logging, log_level.upper()))
     file_handler.setFormatter(formatter)
     
-    # Ajout du handler au logger
-    logger.addHandler(file_handler)
-    
-    # Ajout du handler de console
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    # Création du gestionnaire de console
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, log_level.upper()))
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
     
-    # Message de confirmation
-    logger.info("Système de logging configuré avec succès")
+    # Ajout des gestionnaires au logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
     
     return logger
 
-# Gestion des données
-def load_data(filename: str) -> Dict:
-    """Charge les données depuis un fichier JSON"""
+def load_data(file_path: str) -> Dict:
+    """
+    Charge des données depuis un fichier JSON
+    
+    Args:
+        file_path (str): Chemin du fichier
+    
+    Returns:
+        Dict: Données chargées
+    """
     try:
-        if os.path.exists(filename):
-            with open(filename, 'r') as f:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
                 data = json.load(f)
             return data
         else:
             return {}
     except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors du chargement des données: {e}")
+        print(f"Erreur lors du chargement des données: {e}")
         return {}
 
-def save_data(filename: str, data: Dict) -> bool:
-    """Sauvegarde les données dans un fichier JSON"""
+def save_data(data: Dict, file_path: str) -> bool:
+    """
+    Sauvegarde des données dans un fichier JSON
+    
+    Args:
+        data (Dict): Données à sauvegarder
+        file_path (str): Chemin du fichier
+    
+    Returns:
+        bool: True si la sauvegarde a réussi
+    """
     try:
         # Création du dossier si nécessaire
-        dir_name = os.path.dirname(filename)
+        dir_name = os.path.dirname(file_path)
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name)
         
-        with open(filename, 'w') as f:
+        with open(file_path, 'w') as f:
             json.dump(data, f, indent=2)
         return True
     except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors de la sauvegarde des données: {e}")
+        print(f"Erreur lors de la sauvegarde des données: {e}")
         return False
 
-# Gestion des fichiers
-def create_directories(paths: List[str]) -> bool:
-    """Crée les répertoires spécifiés"""
+def get_file_hash(file_path: str) -> str:
+    """
+    Calcule le hash d'un fichier
+    
+    Args:
+        file_path (str): Chemin du fichier
+    
+    Returns:
+        str: Hash du fichier
+    """
     try:
-        for path in paths:
-            if not os.path.exists(path):
-                os.makedirs(path)
-        return True
+        with open(file_path, 'rb') as f:
+            file_hash = hashlib.md5()
+            while chunk := f.read(8192):
+                file_hash.update(chunk)
+        return file_hash.hexdigest()
     except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors de la création des répertoires: {e}")
-        return False
-
-# Gestion des permissions
-def check_permissions(filepath: str) -> bool:
-    """Vérifie les permissions d'accès à un fichier"""
-    try:
-        return os.access(filepath, os.R_OK | os.W_OK)
-    except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors de la vérification des permissions: {e}")
-        return False
-
-# Gestion des erreurs
-def handle_error(error: Exception, context: str = "") -> None:
-    """Gère les erreurs de manière centralisée"""
-    logger = logging.getLogger('ai_local')
-    error_msg = f"Erreur dans {context}: {str(error)}"
-    logger.error(error_msg)
-    raise error
-
-# Gestion des dates
-def get_timestamp() -> str:
-    """Retourne un timestamp formaté"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-# Validation des données
-def validate_data(data: Dict, required_fields: List[str]) -> bool:
-    """Valide que les champs requis sont présents dans les données"""
-    for field in required_fields:
-        if field not in data:
-            return False
-    return True
-
-# Nettoyage des données
-def clean_data(data: Dict) -> Dict:
-    """Nettoie les données en supprimant les champs vides"""
-    cleaned = {}
-    for key, value in data.items():
-        if value is not None and value != "":
-            cleaned[key] = value
-    return cleaned
-
-# Conversion de données
-def convert_to_json(data: Dict) -> str:
-    """Convertit un dictionnaire en chaîne JSON"""
-    try:
-        return json.dumps(data, indent=2)
-    except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors de la conversion en JSON: {e}")
+        print(f"Erreur lors du calcul du hash: {e}")
         return ""
 
-# Gestion des configurations
-def load_config(config_file: str = "config.json") -> Dict:
-    """Charge la configuration depuis un fichier"""
+def create_backup(file_path: str, backup_dir: str = "backups") -> str:
+    """
+    Crée une sauvegarde d'un fichier
+    
+    Args:
+        file_path (str): Chemin du fichier à sauvegarder
+        backup_dir (str): Répertoire de sauvegarde
+    
+    Returns:
+        str: Chemin de la sauvegarde créée
+    """
     try:
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-            return config
-        else:
-            # Retourne une configuration par défaut
-            return {
-                "log_level": "INFO",
-                "debug": False,
-                "data_dir": "./data",
-                "cache_dir": "./cache"
-            }
-    except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors du chargement de la configuration: {e}")
-        return {}
-
-# Sauvegarde des configurations
-def save_config(config: Dict, config_file: str = "config.json") -> bool:
-    """Sauvegarde la configuration dans un fichier"""
-    try:
-        # Création du dossier si nécessaire
-        dir_name = os.path.dirname(config_file)
-        if dir_name and not os.path.exists(dir_name):
-            os.makedirs(dir_name)
+        # Création du dossier de sauvegarde si nécessaire
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
         
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-        return True
+        # Génération du nom de fichier de sauvegarde
+        filename = os.path.basename(file_path)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{filename}.backup_{timestamp}"
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        # Copie du fichier
+        with open(file_path, 'r') as src:
+            with open(backup_path, 'w') as dst:
+                dst.write(src.read())
+        
+        return backup_path
     except Exception as e:
-        logging.getLogger('ai_local').error(f"Erreur lors de la sauvegarde de la configuration: {e}")
+        print(f"Erreur lors de la création de la sauvegarde: {e}")
+        return ""
+
+def validate_data_structure(data: Dict, required_fields: List[str]) -> bool:
+    """
+    Valide la structure d'un dictionnaire de données
+    
+    Args:
+        data (Dict): Données à valider
+        required_fields (List[str]): Champs requis
+    
+    Returns:
+        bool: True si la structure est valide
+    """
+    try:
+        for field in required_fields:
+            if field not in data:
+                return False
+        return True
+    except Exception:
         return False
 
-# Gestion des logs
-def log_message(message: str, level: str = "INFO") -> None:
-    """Enregistre un message dans les logs"""
-    logger = logging.getLogger('ai_local')
-    if level.upper() == "DEBUG":
-        logger.debug(message)
-    elif level.upper() == "INFO":
-        logger.info(message)
-    elif level.upper() == "WARNING":
-        logger.warning(message)
-    elif level.upper() == "ERROR":
-        logger.error(message)
-    elif level.upper() == "CRITICAL":
-        logger.critical(message)
+def format_timestamp(timestamp: str) -> str:
+    """
+    Formate un horodatage
+    
+    Args:
+        timestamp (str): Horodatage à formater
+    
+    Returns:
+        str: Horodatage formaté
+    """
+    try:
+        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return timestamp
+
+def get_current_timestamp() -> str:
+    """
+    Retourne l'horodatage actuel
+    
+    Returns:
+        str: Horodatage actuel au format ISO
+    """
+    return datetime.now().isoformat()
+
+def get_system_info() -> Dict:
+    """
+    Retourne les informations système
+    
+    Returns:
+        Dict: Informations système
+    """
+    import platform
+    return {
+        "platform": platform.system(),
+        "platform_version": platform.version(),
+        "platform_release": platform.release(),
+        "processor": platform.processor(),
+        "machine": platform.machine(),
+        "python_version": platform.python_version(),
+        "timestamp": get_current_timestamp()
+    }
+
+def sanitize_string(input_string: str) -> str:
+    """
+    Nettoie une chaîne de caractères
+    
+    Args:
+        input_string (str): Chaîne à nettoyer
+    
+    Returns:
+        str: Chaîne nettoyée
+    """
+    if not isinstance(input_string, str):
+        return ""
+    # Supprime les caractères non imprimables
+    return ''.join(char for char in input_string if char.isprintable())
+
+def get_file_size(file_path: str) -> int:
+    """
+    Retourne la taille d'un fichier
+    
+    Args:
+        file_path (str): Chemin du fichier
+    
+    Returns:
+        int: Taille du fichier en octets
+    """
+    try:
+        return os.path.getsize(file_path)
+    except Exception:
+        return 0
+
+def is_valid_file_path(file_path: str) -> bool:
+    """
+    Vérifie si un chemin de fichier est valide
+    
+    Args:
+        file_path (str): Chemin à vérifier
+    
+    Returns:
+        bool: True si le chemin est valide
+    """
+    try:
+        return os.path.isabs(file_path) and os.path.exists(os.path.dirname(file_path))
+    except Exception:
+        return False
+
+def create_directory_if_not_exists(directory_path: str) -> bool:
+    """
+    Crée un répertoire s'il n'existe pas
+    
+    Args:
+        directory_path (str): Chemin du répertoire
+    
+    Returns:
+        bool: True si le répertoire existe ou a été créé
+    """
+    try:
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+        return True
+    except Exception as e:
+        print(f"Erreur lors de la création du répertoire: {e}")
+        return False
+
+def get_elapsed_time(start_time: float) -> float:
+    """
+    Calcule le temps écoulé depuis un moment donné
+    
+    Args:
+        start_time (float): Temps de départ
+    
+    Returns:
+        float: Temps écoulé en secondes
+    """
+    return time.time() - start_time
+
+def safe_dict_get(dictionary: Dict, key: str, default=None) -> Any:
+    """
+    Récupère une valeur d'un dictionnaire de manière sécurisée
+    
+    Args:
+        dictionary (Dict): Dictionnaire à consulter
+        key (str): Clé à rechercher
+        default: Valeur par défaut
+    
+    Returns:
+        Any: Valeur trouvée ou valeur par défaut
+    """
+    try:
+        return dictionary.get(key, default)
+    except Exception:
+        return default
+
+def safe_list_get(lst: List, index: int, default=None) -> Any:
+    """
+    Récupère un élément d'une liste de manière sécurisée
+    
+    Args:
+        lst (List): Liste à consulter
+        index (int): Index à rechercher
+        default: Valeur par défaut
+    
+    Returns:
+        Any: Élément trouvé ou valeur par défaut
+    """
+    try:
+        return lst[index] if 0 <= index < len(lst) else default
+    except Exception:
+        return default
+
+# Exemple d'utilisation
+if __name__ == "__main__":
+    # Configuration du logger
+    logger = setup_logging()
+    
+    # Test des fonctions utilitaires
+    logger.info("Fonctions utilitaires de l'IA Locale")
+    
+    # Test de sauvegarde de données
+    test_data = {"message": "Hello, World!", "timestamp": get_current_timestamp()}
+    save_data(test_data, "test_data.json")
+    
+    # Test de chargement de données
+    loaded_data = load_data("test_data.json")
+    logger.info(f"Données chargées: {loaded_data}")
+    
+    # Nettoyage
+    os.remove("test_data.json")
+    os.remove("logs/ai_local.log")

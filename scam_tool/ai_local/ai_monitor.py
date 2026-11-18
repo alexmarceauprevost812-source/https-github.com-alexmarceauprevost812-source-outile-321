@@ -1,237 +1,297 @@
-#!/usr/bin/env python3
 """
-Moniteur d'IA Locale
-Surveille l'état et les performances de l'IA Locale
+Moniteur d'IA pour l'IA Locale
+Permet de surveiller les performances de l'IA
 """
 
 import os
 import sys
 import json
-import time
 import threading
+import time
 from datetime import datetime
 from typing import Dict, List, Optional
-import logging
+import psutil
+import platform
 
 # Ajout du dossier ai_local au chemin Python
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import AI_CONFIG
 from utils import setup_logging, load_data, save_data
 
 class AIMonitor:
-    """Classe pour le moniteur d'IA Locale"""
+    """Classe pour surveiller les performances de l'IA"""
     
     def __init__(self):
-        """Initialisation du moniteur"""
+        """Initialisation du moniteur d'IA"""
         self.logger = setup_logging()
-        self.monitoring = False
-        self.monitoring_thread = None
-        self.metrics = {
-            "cpu_usage": 0,
-            "memory_usage": 0,
-            "disk_usage": 0,
-            "network_io": 0,
-            "timestamp": datetime.now().isoformat()
-        }
+        self.is_monitoring = False
+        self.monitoring_interval = 5  # en secondes
+        self.metrics_history = []
+        self.alerts = []
         self.logger.info("Moniteur d'IA initialisé")
     
-    def start_monitoring(self, interval: int = 5):
+    def start_monitoring(self):
         """Démarre la surveillance"""
-        def monitoring_loop():
-            self.monitoring = True
-            self.logger.info(f"Surveillance démarrée avec intervalle {interval}s")
-            
-            while self.monitoring:
-                try:
-                    # Collecte des métriques système
-                    self._collect_system_metrics()
-                    
-                    # Enregistrement des métriques
-                    self._save_metrics()
-                    
-                    # Attendre l'intervalle
-                    time.sleep(interval)
-                    
-                except Exception as e:
-                    self.logger.error(f"Erreur dans la boucle de surveillance: {e}")
-                    time.sleep(interval)
+        if self.is_monitoring:
+            self.logger.warning("La surveillance est déjà en cours")
+            return False
         
-        # Démarrage dans un thread séparé
-        self.monitoring_thread = threading.Thread(target=monitoring_loop, daemon=True)
-        self.monitoring_thread.start()
+        self.is_monitoring = True
+        self.logger.info("Surveillance démarrée")
         
-        return self.monitoring_thread
+        # Démarrage du thread de surveillance
+        monitor_thread = threading.Thread(target=self._monitor_loop)
+        monitor_thread.daemon = True
+        monitor_thread.start()
+        
+        return True
     
     def stop_monitoring(self):
         """Arrête la surveillance"""
-        self.monitoring = False
-        if self.monitoring_thread:
-            self.monitoring_thread.join()
+        self.is_monitoring = False
         self.logger.info("Surveillance arrêtée")
     
-    def _collect_system_metrics(self):
+    def _monitor_loop(self):
+        """Boucle principale de surveillance"""
+        while self.is_monitoring:
+            try:
+                # Collecte des métriques
+                metrics = self._collect_metrics()
+                
+                # Enregistrement des métriques
+                self.metrics_history.append({
+                    "timestamp": datetime.now().isoformat(),
+                    "metrics": metrics
+                })
+                
+                # Vérification des alertes
+                self._check_alerts(metrics)
+                
+                # Attente avant la prochaine collecte
+                time.sleep(self.monitoring_interval)
+            except Exception as e:
+                self.logger.error(f"Erreur dans la boucle de surveillance: {e}")
+                time.sleep(self.monitoring_interval)
+    
+    def _collect_metrics(self) -> Dict:
         """Collecte les métriques système"""
         try:
-            # Pour l'instant, on simule les métriques
-            # Dans une version réelle, on utiliserait psutil
-            import random
+            # Métriques CPU
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_count = psutil.cpu_count()
             
-            # Utilisation CPU (simulation)
-            cpu_percent = random.randint(10, 70)
+            # Métriques Mémoire
+            memory = psutil.virtual_memory()
+            memory_percent = memory.percent
             
-            # Utilisation mémoire (simulation)
-            memory_percent = random.randint(20, 80)
+            # Métriques Disque
+            disk = psutil.disk_usage('/')
+            disk_percent = (disk.used / disk.total) * 100
             
-            # Utilisation disque (simulation)
-            disk_percent = random.randint(30, 70)
+            # Métriques Réseau
+            net_io = psutil.net_io_counters()
+            bytes_sent = net_io.bytes_sent
+            bytes_recv = net_io.bytes_recv
             
-            # I/O réseau (simulation)
-            network_io = random.randint(1000000, 10000000)
+            # Métriques Processus
+            processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+                try:
+                    processes.append(proc.info)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
             
-            # Mise à jour des métriques
-            self.metrics = {
-                "cpu_usage": cpu_percent,
-                "memory_usage": memory_percent,
-                "disk_usage": disk_percent,
-                "network_io": network_io,
-                "timestamp": datetime.now().isoformat()
+            # Retour des métriques
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "system": {
+                    "platform": platform.system(),
+                    "platform_version": platform.version(),
+                    "processor": platform.processor()
+                },
+                "cpu": {
+                    "percent": cpu_percent,
+                    "count": cpu_count
+                },
+                "memory": {
+                    "percent": memory_percent,
+                    "total": memory.total,
+                    "available": memory.available,
+                    "used": memory.used
+                },
+                "disk": {
+                    "percent": disk_percent,
+                    "total": disk.total,
+                    "used": disk.used,
+                    "free": disk.free
+                },
+                "network": {
+                    "bytes_sent": bytes_sent,
+                    "bytes_recv": bytes_recv
+                },
+                "processes": {
+                    "count": len(processes),
+                    "top_processes": sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:5]
+                }
             }
-            
-            # Logging des métriques
-            self.logger.debug(f"Métriques collectées: CPU={cpu_percent}%, "
-                            f"Memory={memory_percent}%, Disk={disk_percent}%")
-            
         except Exception as e:
             self.logger.error(f"Erreur lors de la collecte des métriques: {e}")
+            return {}
     
-    def _save_metrics(self):
-        """Sauvegarde les métriques dans un fichier"""
+    def _check_alerts(self, metrics: Dict):
+        """Vérifie si des alertes doivent être générées"""
         try:
-            os.makedirs("data", exist_ok=True)
-            metrics_file = "data/ai_metrics.json"
+            # Vérification des seuils critiques
+            cpu_percent = metrics.get("cpu", {}).get("percent", 0)
+            memory_percent = metrics.get("memory", {}).get("percent", 0)
+            disk_percent = metrics.get("disk", {}).get("percent", 0)
             
-            with open(metrics_file, 'w') as f:
-                json.dump(self.metrics, f, indent=2)
+            # Vérification des seuils
+            if cpu_percent > 80:
+                alert = {
+                    "timestamp": datetime.now().isoformat(),
+                    "type": "cpu_usage",
+                    "value": cpu_percent,
+                    "threshold": 80,
+                    "message": f"Usage CPU élevé: {cpu_percent}%"
+                }
+                self.alerts.append(alert)
+                self.logger.warning(f"Alerte CPU: {cpu_percent}%")
             
+            if memory_percent > 80:
+                alert = {
+                    "timestamp": datetime.now().isoformat(),
+                    "type": "memory_usage",
+                    "value": memory_percent,
+                    "threshold": 80,
+                    "message": f"Usage mémoire élevé: {memory_percent}%"
+                }
+                self.alerts.append(alert)
+                self.logger.warning(f"Alerte mémoire: {memory_percent}%")
+            
+            if disk_percent > 80:
+                alert = {
+                    "timestamp": datetime.now().isoformat(),
+                    "type": "disk_usage",
+                    "value": disk_percent,
+                    "threshold": 80,
+                    "message": f"Utilisation disque élevée: {disk_percent}%"
+                }
+                self.alerts.append(alert)
+                self.logger.warning(f"Alerte disque: {disk_percent}%")
         except Exception as e:
-            self.logger.error(f"Erreur lors de la sauvegarde des métriques: {e}")
+            self.logger.error(f"Erreur lors de la vérification des alertes: {e}")
     
-    def get_metrics(self) -> Dict:
+    def get_current_metrics(self) -> Dict:
         """Retourne les métriques actuelles"""
-        return self.metrics.copy()
+        try:
+            if self.metrics_history:
+                return self.metrics_history[-1]["metrics"]
+            return {}
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération des métriques actuelles: {e}")
+            return {}
+    
+    def get_metrics_history(self) -> List[Dict]:
+        """Retourne l'historique des métriques"""
+        return self.metrics_history
+    
+    def get_alerts(self) -> List[Dict]:
+        """Retourne les alertes générées"""
+        return self.alerts
     
     def get_system_status(self) -> Dict:
         """Retourne l'état du système"""
         try:
-            # Pour l'instant, on simule les informations système
-            import random
-            
-            return {
-                "cpu_count": 4,  # Simulation
-                "memory_total": 8192 * 1024 * 1024,  # 8GB en bytes
-                "memory_available": random.randint(1000 * 1024 * 1024, 6000 * 1024 * 1024),  # 1-6GB
-                "memory_percent": random.randint(20, 80),
-                "disk_total": 500 * 1024 * 1024 * 1024,  # 500GB
-                "disk_used": random.randint(100 * 1024 * 1024 * 1024, 400 * 1024 * 1024 * 1024),  # 100-400GB
-                "disk_percent": random.randint(30, 70),
+            # Vérification de l'état de santé global
+            health = {
+                "status": "healthy",
                 "timestamp": datetime.now().isoformat()
             }
             
+            # Vérification des alertes récentes
+            recent_alerts = [alert for alert in self.alerts if 
+                            datetime.fromisoformat(alert["timestamp"]).timestamp() > 
+                            (datetime.now().timestamp() - 300)]  # Dernières 5 minutes
+            
+            if recent_alerts:
+                health["status"] = "unhealthy"
+                health["recent_alerts"] = len(recent_alerts)
+            
+            return health
         except Exception as e:
-            self.logger.error(f"Erreur lors de la récupération de l'état système: {e}")
-            return {
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+            self.logger.error(f"Erreur lors de la récupération de l'état du système: {e}")
+            return {}
     
-    def check_performance(self) -> Dict:
-        """Vérifie les performances de l'IA"""
-        try:
-            metrics = self.get_metrics()
-            system_status = self.get_system_status()
-            
-            # Vérification des seuils critiques
-            warnings = []
-            
-            if metrics.get("cpu_usage", 0) > 80:
-                warnings.append("CPU usage high")
-            
-            if metrics.get("memory_usage", 0) > 80:
-                warnings.append("Memory usage high")
-            
-            if metrics.get("disk_usage", 0) > 80:
-                warnings.append("Disk usage high")
-            
-            return {
-                "performance": {
-                    "cpu_usage": metrics.get("cpu_usage", 0),
-                    "memory_usage": metrics.get("memory_usage", 0),
-                    "disk_usage": metrics.get("disk_usage", 0),
-                    "network_io": metrics.get("network_io", 0)
-                },
-                "system_status": system_status,
-                "warnings": warnings,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Erreur lors de la vérification des performances: {e}")
-            return {
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+    def clear_history(self):
+        """Efface l'historique"""
+        self.metrics_history.clear()
+        self.alerts.clear()
+        self.logger.info("Historique effacé")
     
-    def generate_report(self) -> Dict:
-        """Génère un rapport de surveillance"""
+    def export_data(self, file_path: str = "data/monitor_data.json") -> bool:
+        """Exporte les données dans un fichier"""
         try:
-            performance = self.check_performance()
-            
-            return {
-                "report": {
-                    "timestamp": datetime.now().isoformat(),
-                    "performance": performance,
-                    "uptime": "running"  # À implémenter avec un compteur
-                }
+            data = {
+                "metrics_history": self.metrics_history,
+                "alerts": self.alerts,
+                "exported_at": datetime.now().isoformat()
             }
             
+            # Création du dossier si nécessaire
+            dir_name = os.path.dirname(file_path)
+            if dir_name and not os.path.exists(dir_name):
+                os.makedirs(dir_name)
+            
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            self.logger.info(f"Données exportées: {file_path}")
+            return True
         except Exception as e:
-            self.logger.error(f"Erreur lors de la génération du rapport: {e}")
-            return {
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+            self.logger.error(f"Erreur lors de l'exportation des données: {e}")
+            return False
+    
+    def import_data(self, file_path: str) -> bool:
+        """Importe les données depuis un fichier"""
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                
+                self.metrics_history = data.get("metrics_history", [])
+                self.alerts = data.get("alerts", [])
+                
+                self.logger.info(f"Données importées: {file_path}")
+                return True
+            else:
+                self.logger.warning(f"Fichier non trouvé: {file_path}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'importation des données: {e}")
+            return False
 
-def main():
-    """Point d'entrée principal pour le moniteur"""
+# Exemple d'utilisation
+if __name__ == "__main__":
+    # Création d'une instance du moniteur
     monitor = AIMonitor()
     
     # Démarrage de la surveillance
-    monitor.start_monitoring(interval=3)
-    print("Surveillance démarrée...")
+    monitor.start_monitoring()
     
-    # Attendre quelques secondes
+    # Attente pour collecter des données
     time.sleep(10)
     
-    # Obtenir les métriques
-    metrics = monitor.get_metrics()
-    print(f"Métriques actuelles: {metrics}")
+    # Affichage des métriques actuelles
+    current_metrics = monitor.get_current_metrics()
+    print("Métriques actuelles:", current_metrics)
     
-    # Obtenir l'état système
-    system_status = monitor.get_system_status()
-    print(f"État système: {system_status}")
+    # Affichage des alertes
+    alerts = monitor.get_alerts()
+    print("Alertes:", alerts)
     
-    # Vérifier les performances
-    performance = monitor.check_performance()
-    print(f"Performances: {performance}")
+    # Exportation des données
+    monitor.export_data()
     
-    # Générer un rapport
-    report = monitor.generate_report()
-    print(f"Rapport: {report}")
-    
-    # Arrêter la surveillance
+    # Arrêt de la surveillance
     monitor.stop_monitoring()
-    print("Surveillance arrêtée")
-
-if __name__ == "__main__":
-    main()

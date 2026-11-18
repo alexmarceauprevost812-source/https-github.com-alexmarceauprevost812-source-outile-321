@@ -1,157 +1,203 @@
-# Scam Tool - Ubuntu Installation Guide
+# IA Locale Scam Tool
 
-## Overview
+Outil d'IA pour la détection de scams basé sur une approche locale.
 
-The Scam Tool is a comprehensive network security assessment tool designed for educational purposes. This guide provides step-by-step instructions for installing and using the Scam Tool on Ubuntu systems.
+## Description
 
-## Prerequisites
+IA Locale Scam Tool est un outil d'intelligence artificielle conçu pour détecter les escroqueries dans le trafic réseau. Il utilise une approche locale pour éviter les transmissions de données vers des serveurs externes, garantissant ainsi la confidentialité des données.
 
-Before installing the Scam Tool on Ubuntu, ensure you have the following:
+## Fonctionnalités
 
-- A computer running Ubuntu (18.04 or later)
-- At least 4GB of RAM
-- 10GB of available disk space
-- Internet connectivity
-- Root privileges or sudo access
+- Détection d'escroqueries dans le trafic réseau
+- Analyse de trafic réseau en temps réel
+- Surveillance des performances système
+- Intégration d'IA distribuée
+- Exportation et importation de données
+- Gestion de configuration
 
-## One-Command Installation
+## Structure du Projet
 
-Install all required dependencies and tools with a single command:
-
-```bash
-sudo apt update && sudo apt install -y curl wget git python3 python3-pip python3-venv && mkdir -p scam_tool && cd scam_tool && git clone https://github.com/your-repo/scam-tool.git . && pip3 install -r requirements.txt
+```
+scam_tool/
+├── ai_local/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── utils.py
+│   ├── ai_manager.py
+│   ├── ai_monitor.py
+│   ├── scam_detector.py
+│   ├── network_analyzer.py
+│   ├── ai_integration.py
+├── data/
+├── cache/
+├── models/
+├── logs/
+├── config.json
+└── requirements.txt
 ```
 
-## Installation Steps
+## Installation
 
-### Step 1: Update Your System
+### Prérequis
 
-First, update your package list to ensure you have the latest software versions:
+- Python 3.7+
+- pip
 
-```bash
-sudo apt update
+### Étapes d'installation
+
+1. **Cloner le dépôt :**
+   ```bash
+   git clone <url-du-depot>
+   cd scam_tool
+   ```
+
+2. **Créer un environnement virtuel :**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+   ```
+
+3. **Installer les dépendances :**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Installer les bibliothèques système nécessaires :**
+   ```bash
+   # Sur Ubuntu/Debian
+   sudo apt-get update
+   sudo apt-get install python3-dev libpcap-dev
+   
+   # Sur CentOS/RHEL/Fedora
+   sudo yum install python3-devel libpcap-devel
+   
+   # Sur macOS
+   brew install libpcap
+   ```
+
+5. **Créer les répertoires nécessaires :**
+   ```bash
+   mkdir -p data cache models logs
+   ```
+
+## Configuration
+
+La configuration est gérée via le fichier `config.json`. Vous pouvez modifier les paramètres dans ce fichier ou utiliser les fonctions de gestion de configuration dans le code.
+
+### Paramètres de configuration
+
+- `data_dir`: Répertoire pour les données
+- `cache_dir`: Répertoire pour le cache
+- `models_dir`: Répertoire pour les modèles
+- `logs_dir`: Répertoire pour les logs
+- `monitoring_interval`: Intervalle de surveillance (en secondes)
+- `log_level`: Niveau de journalisation
+- `features`: Fonctionnalités activées
+
+## Utilisation
+
+### Démarrage
+
+Pour démarrer l'outil :
+
+```python
+from ai_local import initialize
+
+# Initialiser le système
+initialize()
+
+# Démarrer l'intégration
+from ai_local.ai_integration import AIIntegration
+integration = AIIntegration()
+integration.start_integration()
 ```
 
-### Step 2: Install Required Dependencies
+### Exemple d'utilisation
 
-Install the necessary dependencies for the Scam Tool:
+```python
+# Création d'un détecteur d'escroqueries
+from ai_local.scam_detector import ScamDetector
 
-```bash
-sudo apt install -y curl wget git python3 python3-pip python3-venv
+detector = ScamDetector()
+
+# Ajout d'adresses IP suspectes
+detector.add_suspicious_ip("192.168.1.100")
+detector.add_suspicious_ip("10.0.0.1")
+
+# Ajout de ports suspectes
+detector.add_suspicious_port(23)
+detector.add_suspicious_port(25)
+
+# Démarrage de la surveillance
+detector.start_monitoring()
+
+# Analyse de paquets
+packet = {
+    "source_ip": "192.168.1.100",
+    "destination_ip": "8.8.8.8",
+    "protocol": "TCP",
+    "source_port": 23,
+    "destination_port": 80,
+    "packet_size": 1000,
+    "timestamp": "2023-01-01T00:00:00Z"
+}
+
+result = detector.analyze_packet(packet)
+print(result)
 ```
 
-### Step 3: Download and Install the Scam Tool
+## Composants
 
-Clone the repository and install dependencies:
+### AIManager
 
-```bash
-mkdir -p scam_tool && cd scam_tool
-git clone https://github.com/your-repo/scam-tool.git .
-pip3 install -r requirements.txt
-```
+Gestionnaire principal pour les composants de l'IA.
 
-### Step 4: Verify Installation
+### AIMonitor
 
-After installation, verify that all tools are properly installed:
+Surveille les performances système.
 
-```bash
-# Check Python packages
-python3 --version
-pip3 --version
-```
+### ScamDetector
 
-## Usage Instructions
+Détecte les escroqueries dans le trafic réseau.
 
-To run the Scam Tool:
+### NetworkAnalyzer
 
-```bash
-python3 scam_tool.py
-```
+Analyse le trafic réseau.
 
-The tool will generate a scan report in the `scam_results/` directory.
+### AIIntegration
 
-## Important Notes
+Intègre tous les composants de l'IA.
 
-- This tool is designed for educational purposes only and should be used in accordance with local laws and regulations.
-- The Scam Tool has limitations and may not provide complete attack simulation capabilities without proper network configuration.
-- Full attack simulation requires integration with tools like mitmf, ettercap, and wifite.
-- Always ensure you have proper authorization before conducting network security assessments.
+## Données
 
-## Sample Configuration
+Les données sont stockées dans les répertoires suivants :
 
-The sample configuration file includes default settings for network scanning and vulnerability assessment:
+- `data/`: Données utilisateur
+- `cache/`: Fichiers de cache
+- `models/`: Modèles d'IA
+- `logs/`: Fichiers de journalisation
 
-```yaml
-# Sample configuration for Scam Tool
-# This file can be customized for specific scan parameters
+## Exportation et Importation
 
-scan:
-  target_network: "192.168.1.0/24"
-  scan_type: "full"
-  tools:
-    - nmap
-    - arp-scan
-    - dnsenum
+Les données peuvent être exportées et importées via les méthodes :
 
-device_info:
-  enabled: true
-  ports:
-    - 22
-    - 80
-    - 443
-    - 3389
+- `export_data()`
+- `import_data()`
 
-vulnerability:
-  enabled: true
-  recommendations:
-    - "Enable SSH key authentication only"
-    - "Implement HTTPS with proper security headers"
-    - "Secure RDP access with network-level authentication"
-    - "Implement stricter firewall rules"
-    - "Ensure all systems are up to date with security patches"
+## Sécurité
 
-attack_simulation:
-  enabled: false
-  # Note: Attack simulation requires proper network configuration and user interaction
+L'outil utilise une approche locale pour éviter les transmissions de données vers des serveurs externes. Les données sensibles sont conservées localement.
 
-general:
-  version: "1.0"
-  created: "2025-04-05"
-  author: "Scam Tool - Ubuntu Edition"
-  disclaimer: "This tool is for educational purposes only and should be used in accordance with local laws and regulations."
-```
+## Licence
 
-## Sample Log File
+Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus d'informations.
 
-A sample log file is created during installation:
+## Auteur
 
-```text
-# Scan Log - Sample
-# Generated on: 2025-04-05
-# Target Network: 192.168.1.0/24
-# Scan Type: Full Network Discovery
-# Status: Completed
-# Devices Found: 3
-# Vulnerabilities Identified: 5
-# Recommendations Generated: 5
+Scam Tool Team
 
-# Security Recommendations:
-# 1. Enable SSH key authentication only, disable password authentication
-# 2. Implement HTTPS with proper security headers
-# 3. Secure RDP access with network-level authentication
-# 4. Implement stricter firewall rules
-# 5. Ensure all systems are up to date with security patches
-```
+## Remarques
 
-## Troubleshooting
-
-If you encounter issues during installation:
-
-- Ensure you have sufficient disk space
-- Verify your internet connection
-- Check that you have sudo privileges
-- Review the installation log for specific errors
-
-## License
-
-This tool is provided for educational purposes only. Use it in accordance with local laws and regulations.
+- Ce projet est encore en développement
+- Veuillez consulter les fichiers de log pour les informations de débogage
+- Les fonctionnalités peuvent être étendues selon les besoins
