@@ -52,39 +52,27 @@ scam_tool/
    cd scam_tool
    ```
 
-2. **Créer un environnement virtuel :**
+2. **Exécuter le script d'installation unique :**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+   chmod +x install_single.sh
+   ./install_single.sh
    ```
 
-3. **Installer les dépendances Python :**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Script d'installation unique
 
-4. **Installer les bibliothèques système nécessaires :**
+Le projet inclut un script d'installation unique qui effectue toutes les étapes nécessaires en une seule commande :
 
-   **Ubuntu/Debian :**
-   ```bash
-   sudo apt-get update
-   sudo apt-get install python3-dev libpcap-dev build-essential
-   ```
+```bash
+chmod +x install_single.sh
+./install_single.sh
+```
 
-   **CentOS/RHEL/Fedora :**
-   ```bash
-   sudo yum install python3-devel libpcap-devel gcc
-   ```
-
-   **macOS :**
-   ```bash
-   brew install libpcap
-   ```
-
-5. **Créer les répertoires nécessaires :**
-   ```bash
-   mkdir -p data cache models logs
-   ```
+Ce script :
+- Détecte automatiquement la distribution Linux
+- Installe tous les outils système requis
+- Installe les bibliothèques Python nécessaires
+- Crée les répertoires nécessaires
+- Configure le projet pour une utilisation immédiate
 
 ## Configuration
 
