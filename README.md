@@ -42,6 +42,7 @@ scam_tool/
 
 - Python 3.7+
 - pip
+- Accès root (pour l'analyse réseau)
 
 ### Étapes d'installation
 
@@ -57,21 +58,26 @@ scam_tool/
    source venv/bin/activate  # Sur Windows: venv\Scripts\activate
    ```
 
-3. **Installer les dépendances :**
+3. **Installer les dépendances Python :**
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Installer les bibliothèques système nécessaires :**
+
+   **Ubuntu/Debian :**
    ```bash
-   # Sur Ubuntu/Debian
    sudo apt-get update
-   sudo apt-get install python3-dev libpcap-dev
-   
-   # Sur CentOS/RHEL/Fedora
-   sudo yum install python3-devel libpcap-devel
-   
-   # Sur macOS
+   sudo apt-get install python3-dev libpcap-dev build-essential
+   ```
+
+   **CentOS/RHEL/Fedora :**
+   ```bash
+   sudo yum install python3-devel libpcap-devel gcc
+   ```
+
+   **macOS :**
+   ```bash
    brew install libpcap
    ```
 

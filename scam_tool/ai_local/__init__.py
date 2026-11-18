@@ -1,67 +1,57 @@
 """
-IA Locale Scam Tool
-Outil d'IA pour la détection de scams
+Initialisation du package IA Locale
 """
 
-# Version de l'application
-__version__ = "1.0.0"
-__author__ = "Scam Tool Team"
-__email__ = "contact@scamtool.com"
-__license__ = "MIT"
-__description__ = "Outil d'IA pour la détection de scams"
-
-# Importation des modules principaux
-from .config import config, load_config, save_config
-from .utils import setup_logging, load_data, save_data
-from .ai_monitor import AIMonitor
+# Importation des classes principales
 from .ai_manager import AIManager
+from .ai_monitor import AIMonitor
+from .scam_detector import ScamDetector
+from .network_analyzer import NetworkAnalyzer
 from .ai_integration import AIIntegration
-from .ai_monitor import AIMonitor
-from .ai_manager import AIManager
+from .config import config
 
-# Initialisation du logger
-logger = setup_logging()
-
-# Définition des classes principales
+# Définition des exports
 __all__ = [
-    'config',
-    'load_config',
-    'save_config',
-    'setup_logging',
-    'load_data',
-    'save_data',
-    'AIMonitor',
     'AIManager',
+    'AIMonitor', 
+    'ScamDetector',
+    'NetworkAnalyzer',
     'AIIntegration',
-    'AIMonitor',
-    'AIManager'
+    'config'
 ]
 
-# Fonction d'initialisation
+# Version du package
+__version__ = '1.0.0'
+__author__ = 'Scam Tool Team'
+__email__ = 'contact@scamtool.com'
+
 def initialize():
     """
-    Initialise le système d'IA Locale
-    """
-    logger.info("Initialisation du système d'IA Locale")
+    Initialise le système IA Locale
     
-    # Création des répertoires nécessaires
+    Cette fonction configure le système avec les paramètres par défaut
+    et prépare les composants pour l'exécution.
+    """
+    # Configuration initiale
+    print("Initialisation du système IA Locale...")
+    
+    # Vérification des répertoires
+    import os
     directories = [
-        config.get('data_dir', './data'),
-        config.get('cache_dir', './cache'),
-        config.get('models_dir', './models'),
-        config.get('logs_dir', './logs')
+        config.get('data_dir'),
+        config.get('cache_dir'),
+        config.get('models_dir'),
+        config.get('logs_dir')
     ]
     
     for directory in directories:
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-            logger.info(f"Répertoire créé: {directory}")
+        if directory:
+            dir_path = os.path.abspath(directory)
+            os.makedirs(dir_path, exist_ok=True)
     
-    logger.info("Initialisation terminée")
+    print("Système IA Locale initialisé avec succès")
+    return True
 
-# Initialisation automatique
-try:
-    import os
+# Point d'entrée principal
+if __name__ == "__main__":
     initialize()
-except Exception as e:
-    print(f"Erreur lors de l'initialisation: {e}")
