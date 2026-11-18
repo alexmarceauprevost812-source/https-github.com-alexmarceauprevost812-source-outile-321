@@ -48,8 +48,8 @@ scam_tool/
 
 1. **Cloner le dépôt :**
    ```bash
-   git clone <url-du-depot>
-   cd scam_tool
+   git clone https://github.com/alexmarceauprevost812/source-outile-321.git
+   cd source-outile-321
    ```
 
 2. **Exécuter le script d'installation unique :**
